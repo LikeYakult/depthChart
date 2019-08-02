@@ -2,7 +2,14 @@
   <div class="hello">
     <div class="chart-layout" :style="wrapStyles">
       <canvas class="chart" ref="chart" :width="fWidth" :height="fHeight" :style="chartStyles"></canvas>
-      <canvas class="chart-mask" ref="chartMask" :width="fWidth" :height="fHeight"></canvas>
+      <canvas class="chart-mask"
+              ref="chartMask"
+              :width="fWidth"
+              :height="fHeight"
+              @mousemove="handleMouseMove"
+              @mouseout="handleMouseOut"
+      >
+      </canvas>
       <canvas class="chart-x" ref="xChart" :width="fWidth" height="24" :style="xStyles"></canvas>
       <canvas class="chart-y" ref="yChart" width="48" :height="fHeight" :style="yStyles"></canvas>
     </div>
@@ -16,11 +23,11 @@ export default {
   props: {
     height: {
       type: String,
-      default: '300px'
+      default: '260px'
     },
     width: {
       type: String,
-      default: '600px'
+      default: '1200px'
     },
     bgColor: {
       type: String,
@@ -41,10 +48,6 @@ export default {
     gap: {
       type: Number,
       default: 10
-    },
-    axisFontSize: {
-      type: Number,
-      default: 12
     },
     // 锯齿
     jagged: {
@@ -325,7 +328,8 @@ export default {
 
       const { scaleW } = this.args;
 
-      context.fillStyle = "#ccc";
+      context.font = '10px Sans-Serif';
+      context.fillStyle = "rgba(0, 0, 0, 0.35)";
 
       let x = 0;
       let y = 0;
@@ -358,8 +362,8 @@ export default {
           x = 0;
         }
 
-        y = this.axisFontSize || 12;
-        context.fillText(text, x, y);
+        y = 16;
+        context.fillText(text, x, 16);
       }
     },
     _drawYLine() {
@@ -373,14 +377,153 @@ export default {
         context.clearRect(0, 0, 48, height);
       }
 
-      context.fillStyle = "#ccc";
+      context.font = '10px Sans-Serif';
+      context.fillStyle = "rgba(0, 0, 0, 0.35)";
 
       let seg = maxAmount / 5;
       for(let i = 1; i < 6; i++) {
-        x = this.axisFontSize || 12;
+        x = 6;
         y = height - seg * i / maxAmount * height;
         context.fillText(utils.toPretty(seg * i), x, y);
       }
+    },
+    handleMouseMove({ offsetX, offsetY }) {
+      const valueMap = this.valueMap;
+      const maskContext = this.maskContext;
+      const width = this.fWidth;
+      const height = this.fHeight;
+      const Half = width / 2;
+
+
+      for(let key of valueMap.keys()) {
+        const x = key[0];
+        const y = key[1];
+        const side = key[2];
+        const result = valueMap.get(key);
+        const colorsDepth = side === 'buy' ? '#0D7680' : '#8F223A';
+        const colorsDepthArc = side === 'buy' ? 'rgba(13, 118, 128, 0.35)' : 'rgba(143, 34, 58, 0.35)';
+        const isLeft = offsetX < Half;
+
+        if(offsetX < x) {
+          maskContext.strokeStyle = colorsDepth;
+          maskContext.lineWidth = 2;
+          maskContext.setLineDash([6]);
+          maskContext.clearRect(0, 0, width, height);
+          // maskContext.beginPath();
+          // maskContext.moveTo(0, y);
+          // maskContext.lineTo(width, y);
+          // maskContext.stroke();
+          // maskContext.closePath();
+
+          maskContext.beginPath();
+          maskContext.moveTo(x, y);
+          maskContext.lineTo(x, height);
+          maskContext.stroke();
+          maskContext.closePath();
+
+          maskContext.beginPath();
+          // maskContext.shadowBlur = 10;
+          // maskContext.shadowColor = 'rgba(0, 0, 0, 0.8)';
+
+          maskContext.fillStyle = colorsDepthArc;
+          maskContext.arc(x, y, 10, 0, 2 * Math.PI);
+          maskContext.fill();
+          maskContext.closePath();
+
+          maskContext.beginPath();
+          maskContext.fillStyle = colorsDepth;
+          maskContext.arc(x, y, 5, 0, 2 * Math.PI);
+          maskContext.fill();
+          maskContext.closePath();
+
+
+          maskContext.beginPath();
+          maskContext.fillStyle = 'white';
+          maskContext.font = '12px bold';
+
+
+          let widthOffset = 152;
+          let heightOffset = 96;
+          let left = x - widthOffset / 2;
+          let top = y - heightOffset - 10;
+          let maxTextWidth = Math.max(maskContext.measureText(this.tipsPrice).width, maskContext.measureText(this.tipsTotal).width);
+
+          if(maxTextWidth + 20 > widthOffset) {
+            widthOffset = maxTextWidth + 20;
+          }
+
+          if(left < 0) {
+            left = 0
+          }
+
+          // if(left >= width - widthOffset) {
+          //   left = width - widthOffset;
+          // }
+
+          if(top <= 0) {
+            top = y + 10;
+          }
+
+          const marginLeft = 10;
+          const marginTop = 24;
+          const lineHeight = 20;
+          const leftPos = left + widthOffset / 2;
+          const leftPosAndMargin = left + marginLeft + widthOffset / 2 + 6;
+          const rightPos = left - widthOffset / 2;
+          const rightPosAndMargin = left - marginLeft + widthOffset - 206;
+          const textPos = isLeft ? leftPosAndMargin : rightPosAndMargin;
+
+
+          // console.log(leftPos, 'leftPos')
+          // console.log(widthOffset, 'widthOffset')
+          // console.log(rightPos, 'rightPos')
+          // console.log(left, 'left')
+          // maskContext.fillRect(left, top, widthOffset, heightOffset);
+          this.drawRoundedRect(maskContext, isLeft ? leftPos : rightPos, top, widthOffset, heightOffset, 4, true, false);
+
+          maskContext.fillStyle = colorsDepth;
+          maskContext.fillRect(leftPos, top, 2, heightOffset);
+          maskContext.textAlign = 'left';
+          maskContext.shadowBlur = 6;
+          maskContext.shadowColor = 'rgba(255, 206, 167, 0.5)';
+
+          maskContext.fillStyle = 'rgba(0, 0, 0, 0.65)';
+          maskContext.fillText(this.tipsPrice, textPos, top + marginTop);
+          maskContext.fillStyle = 'black';
+          maskContext.fillText(utils.toThousand(result.price), textPos, top + marginTop + 16);
+          maskContext.fillStyle = 'rgba(0, 0, 0, 0.65)';
+          maskContext.fillText(this.tipsTotal, textPos, top + marginTop + lineHeight + 24);
+          maskContext.fillStyle = 'black';
+          maskContext.fillText(utils.toThousand(result.total), textPos, top + marginTop + lineHeight + 40);
+          maskContext.closePath();
+          break;
+        }
+      }
+    },
+    handleMouseOut() {
+      const maskContext = this.maskContext;
+      const width = this.fWidth;
+      const height = this.fHeight;
+      maskContext.clearRect(0, 0, width, height)
+    },
+    drawRoundedRect(ctx, x, y, width, height, r, fill, stroke) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + width, y, x + width, y + r, r);
+      ctx.arcTo(x + width, y + height, x + width - r, y + height, r);
+      ctx.arcTo(x, y + height, x, y + height - r, r);
+      ctx.arcTo(x, y, x + r, y, r);
+
+      if (fill) {
+        ctx.fill();
+      }
+
+      if (stroke) {
+        ctx.stroke();
+      }
+
+      ctx.restore();
     }
   }
 }
@@ -395,6 +538,7 @@ export default {
 
 .chart-layout {
   position: relative;
+  margin-top: 120px;
 }
 
 .chart-layout canvas {

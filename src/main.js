@@ -4,10 +4,11 @@ import Vue from 'vue';
 import dateformat from 'dateformat';
 import App from './App';
 import router from './router';
+import VdepthChart from 'v-depth-chart'
 import ElementUI from 'element-ui';
 import 'element-ui/lib/theme-chalk/index.css';
 
-
+Vue.use(VdepthChart);
 Vue.use(ElementUI);
 Vue.config.productionTip = false;
 Vue.prototype.$date = dateformat;
